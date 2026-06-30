@@ -1,4 +1,4 @@
-local ForUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/TUO-REPO/ForUI/main/ForUI.lua"))()
+local ForUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/AcelestuZ/Whyyy/main/UI.lua"))()
 local ui = ForUI.new()
 
 local TextChatService = game:GetService("TextChatService")
