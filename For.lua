@@ -5,9 +5,6 @@ local TextChatService = game:GetService("TextChatService")
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
------------------------------------------------------
--- TAB CHAT
------------------------------------------------------
 local chatTab = ui:AddTab("Chat")
 ui:AddSection("Whisper Tools")
 ui:AddLabel("Spy dei whispers locali")
@@ -19,24 +16,19 @@ ui:AddToggle("Whisper Spy", false, function(state)
     ui:Notify("Whisper Spy: " .. (state and "ON" or "OFF"), 2)
 end)
 
--- WHISPER SPY
 TextChatService.MessageReceived:Connect(function(msg)
     if not spyEnabled then return end
-    if msg.TextChannel.Name ~= "RBXWhisper" then return end
+    if not msg.TextChannel or not msg.TextSource then return end
+    if not string.find(msg.TextChannel.Name, "RBXWhisper") then return end
 
     local sender = msg.TextSource
-    local target = msg.Target
-
-    if sender == LocalPlayer or target == LocalPlayer then
+    if sender.UserId ~= LocalPlayer.UserId then
         TextChatService.TextChannels.RBXGeneral:DisplaySystemMessage(
             "<font color='#00AEEF'>[SPY]</font> " .. sender.Name .. ": " .. msg.Text
         )
     end
 end)
 
------------------------------------------------------
--- TAB TRADUTTORE
------------------------------------------------------
 local transTab = ui:AddTab("Translator")
 ui:AddSection("For Translate")
 ui:AddLabel("Traduzione automatica dei messaggi")
@@ -63,36 +55,50 @@ ui:AddToggle("Mostra traduzioni", true, function(state)
     ShowTranslated = state
 end)
 
--- TRADUTTORE
 local HttpService = game:GetService("HttpService")
 local API_URL = "https://libretranslate.com/translate"
 
 local function Translate(text, target)
-    local body = HttpService:JSONEncode({
-        q = text,
-        source = "auto",
-        target = target,
-        format = "text"
-    })
+    local success, body = pcall(function()
+        return HttpService:JSONEncode({
+            q = text,
+            source = "auto",
+            target = target,
+            format = "text"
+        })
+    end)
+    if not success then return nil end
 
-    local response = request({
-        Url = API_URL,
-        Method = "POST",
-        Headers = {["Content-Type"] = "application/json"},
-        Body = body
-    })
+    local req = request or http and http.request or syn and syn.request
+    if not req then return nil end
 
-    if not response or not response.Body then
+    local resSuccess, response = pcall(function()
+        return req({
+            Url = API_URL,
+            Method = "POST",
+            Headers = {["Content-Type"] = "application/json"},
+            Body = body
+        })
+    end)
+
+    if not resSuccess or not response or not response.Body then
         return nil
     end
 
-    local decoded = HttpService:JSONDecode(response.Body)
+    local decodeSuccess, decoded = pcall(function()
+        return HttpService:JSONDecode(response.Body)
+    end)
+
+    if not decodeSuccess or not decoded or not decoded.translatedText then
+        return nil
+    end
+
     return decoded.translatedText
 end
 
 TextChatService.MessageReceived:Connect(function(msg)
     if not TranslateEnabled then return end
-    if msg.TextSource.UserId == LocalPlayer.UserId then return end
+    if not msg.TextSource or msg.TextSource.UserId == LocalPlayer.UserId then return end
 
     local translated = Translate(msg.Text, TargetLang)
     if translated and translated ~= msg.Text then
